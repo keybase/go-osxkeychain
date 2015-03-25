@@ -4,24 +4,42 @@ import (
 	"testing"
 )
 
-func TestFindGenericPassword(t *testing.T) {
+func TestGenericPassword(t *testing.T) {
+	passwordVal := "longfakepassword"
+	accountNameVal := "bgentry"
+	serviceNameVal := "osxkeychain"
+	pass := GenericPassword{
+		ServiceName:     serviceNameVal,
+		AccountName:    accountNameVal,
+		Password: passwordVal,
+	}
+	// Add the password
+	err := AddGenericPassword(&pass)
+	if err != nil {
+		t.Error(err)
+	}
+	// Try adding again, expect it to fail as a duplicate
+	err = AddGenericPassword(&pass)
+	if err != ErrDuplicateItem {
+		t.Errorf("expected ErrDuplicateItem on 2nd save, got %s", err)
+	}
 	// Find the password
 	pass2 := GenericPassword{
-		ServiceName: "GnuPG",
-		AccountName: "keybase-test",
+		ServiceName: serviceNameVal,
+		AccountName:    accountNameVal,
 	}
 	resp, err := FindGenericPassword(&pass2)
 	if err != nil {
 		t.Error(err)
 	}
-	if resp.Password != "asdfadfs" {
-		t.Errorf("FindInternetPassword expected Password=%q, got %q", "asdfadfs", resp.Password)
+	if resp.Password != passwordVal {
+		t.Errorf("FindGenericPassword expected Password=%q, got %q", passwordVal, resp.Password)
 	}
-	if resp.AccountName != "keybase-test" {
-		t.Errorf("FindInternetPassword expected AccountName=%q, got %q", "keybase-test", resp.AccountName)
+	if resp.AccountName != accountNameVal {
+		t.Errorf("FindGenericPassword expected AccountName=%q, got %q", accountNameVal, resp.AccountName)
 	}
-	if resp.ServiceName != "GnuPG" {
-		t.Errorf("FindInternetPassword expected ServerName=%q, got %q", "GnuPG", resp.ServiceName)
+	if resp.ServiceName != serviceNameVal {
+		t.Errorf("FindGenericPassword expected ServiceName=%q, got %q", serviceNameVal, resp.ServiceName)
 	}
 }
 

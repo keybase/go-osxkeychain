@@ -142,6 +142,32 @@ func authenticationTypeToGo(authtype C.CFTypeRef) AuthenticationType {
 	panic(fmt.Sprintf("unknown authtype in authenticationTypeToGo: %v", authtype))
 }
 
+func AddGenericPassword(pass *GenericPassword) error {
+	cpassword := C.CString(pass.Password)
+	defer C.free(unsafe.Pointer(cpassword))
+	var itemRef C.SecKeychainItemRef
+
+	errCode := C.SecKeychainAddGenericPassword(
+		nil, // default keychain
+		C.UInt32(len(pass.ServiceName)),
+		C.CString(pass.ServiceName),
+		C.UInt32(len(pass.AccountName)),
+		C.CString(pass.AccountName),
+		C.UInt32(len(pass.Password)),
+		unsafe.Pointer(cpassword),
+		&itemRef,
+	)
+	if errCode != C.noErr {
+		if err, exists := resultCodes[int(errCode)]; exists {
+			return err
+		}
+		return fmt.Errorf("Unmapped result code: %d", errCode)
+	}
+	defer C.CFRelease(C.CFTypeRef(itemRef))
+
+	return nil
+}
+
 // Adds an Internet password to the user's default keychain.
 func AddInternetPassword(pass *InternetPassword) error {
 	// TODO: Check fields for UTF-8 encoding and size fitting in
