@@ -246,7 +246,7 @@ func FindGenericPassword(pass *GenericPassword) (*GenericPassword, error) {
 	return &resp, nil
 }
 
-func FindAndRemoveGenericPassword(pass *GenericPassword) (bool, error) {
+func FindAndRemoveGenericPassword(pass *GenericPassword) (error) {
 	var itemRef C.SecKeychainItemRef
 
 	errCode := C.SecKeychainFindGenericPassword(
@@ -262,21 +262,21 @@ func FindAndRemoveGenericPassword(pass *GenericPassword) (bool, error) {
 
 	if errCode != C.noErr {
 		if err, exists := resultCodes[int(errCode)]; exists {
-			return false, err
+			return err
 		}
-		return false, fmt.Errorf("Unmapped result code: %d", errCode)
+		return fmt.Errorf("Unmapped result code: %d", errCode)
 	}
 	defer C.CFRelease(C.CFTypeRef(itemRef))
 
 	errCode = C.SecKeychainItemDelete(itemRef)
 	if errCode != C.noErr {
 		if err, exists := resultCodes[int(errCode)]; exists {
-			return false, err
+			return err
 		}
-		return false, fmt.Errorf("Unmapped result code: %d", errCode)
+		return fmt.Errorf("Unmapped result code: %d", errCode)
 	}
 
-	return true, nil
+	return nil
 }
 
 // Finds the first Internet password item that matches the attributes you
