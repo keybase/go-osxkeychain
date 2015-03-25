@@ -32,6 +32,12 @@ const (
 	AuthenticationAny
 )
 
+type GenericPassword struct {
+	ServiceName string
+	AccountName string
+	Password    string
+}
+
 // A password for an Internet server, such as a Web or FTP server. Internet
 // password items on the keychain include attributes such as the security domain
 // and IP address.
@@ -180,6 +186,38 @@ func AddInternetPassword(pass *InternetPassword) error {
 	)
 
 	return newKeychainError(errCode)
+}
+
+func FindGenericPassword(pass *GenericPassword) (*GenericPassword, error) {
+	resp := *pass
+	var cpassword unsafe.Pointer
+	var cpasslen C.UInt32
+	var itemRef C.SecKeychainItemRef
+
+	errCode := C.SecKeychainFindGenericPassword(
+		nil, // default keychain
+		C.UInt32(len(pass.ServiceName)),
+		C.CString(pass.ServiceName),
+		C.UInt32(len(pass.AccountName)),
+		C.CString(pass.AccountName),
+		&cpasslen,
+		&cpassword,
+		&itemRef,
+	)
+
+	if errCode != C.noErr {
+		if err, exists := resultCodes[int(errCode)]; exists {
+			return nil, err
+		}
+		return nil, fmt.Errorf("Unmapped result code: %d", errCode)
+	}
+	defer C.CFRelease(C.CFTypeRef(itemRef))
+	defer C.SecKeychainItemFreeContent(nil, cpassword)
+
+	buf := C.GoStringN((*C.char)(cpassword), C.int(cpasslen))
+	resp.Password = string(buf)
+
+	return &resp, nil
 }
 
 // Finds the first Internet password item that matches the attributes you

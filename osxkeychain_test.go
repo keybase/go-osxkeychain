@@ -4,6 +4,27 @@ import (
 	"testing"
 )
 
+func TestFindGenericPassword(t *testing.T) {
+	// Find the password
+	pass2 := GenericPassword{
+		ServiceName: "GnuPG",
+		AccountName: "keybase-test",
+	}
+	resp, err := FindGenericPassword(&pass2)
+	if err != nil {
+		t.Error(err)
+	}
+	if resp.Password != "asdfadfs" {
+		t.Errorf("FindInternetPassword expected Password=%q, got %q", "asdfadfs", resp.Password)
+	}
+	if resp.AccountName != "keybase-test" {
+		t.Errorf("FindInternetPassword expected AccountName=%q, got %q", "keybase-test", resp.AccountName)
+	}
+	if resp.ServiceName != "GnuPG" {
+		t.Errorf("FindInternetPassword expected ServerName=%q, got %q", "GnuPG", resp.ServiceName)
+	}
+}
+
 func TestInternetPassword(t *testing.T) {
 	passwordVal := "longfakepassword with \000 embedded nuls \000"
 	accountNameVal := "bgentry"
