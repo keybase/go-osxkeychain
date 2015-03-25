@@ -246,6 +246,39 @@ func FindGenericPassword(pass *GenericPassword) (*GenericPassword, error) {
 	return &resp, nil
 }
 
+func FindAndRemoveGenericPassword(pass *GenericPassword) (bool, error) {
+	var itemRef C.SecKeychainItemRef
+
+	errCode := C.SecKeychainFindGenericPassword(
+		nil, // default keychain
+		C.UInt32(len(pass.ServiceName)),
+		C.CString(pass.ServiceName),
+		C.UInt32(len(pass.AccountName)),
+		C.CString(pass.AccountName),
+		nil,
+		nil,
+		&itemRef,
+	)
+
+	if errCode != C.noErr {
+		if err, exists := resultCodes[int(errCode)]; exists {
+			return false, err
+		}
+		return false, fmt.Errorf("Unmapped result code: %d", errCode)
+	}
+	defer C.CFRelease(C.CFTypeRef(itemRef))
+
+	errCode = C.SecKeychainItemDelete(itemRef)
+	if errCode != C.noErr {
+		if err, exists := resultCodes[int(errCode)]; exists {
+			return false, err
+		}
+		return false, fmt.Errorf("Unmapped result code: %d", errCode)
+	}
+
+	return true, nil
+}
+
 // Finds the first Internet password item that matches the attributes you
 // provide in pass. Some attributes, such as ServerName and AccountName may be
 // left blank, in which case they will be ignored in the search.

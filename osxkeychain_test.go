@@ -41,6 +41,14 @@ func TestGenericPassword(t *testing.T) {
 	if resp.ServiceName != serviceNameVal {
 		t.Errorf("FindGenericPassword expected ServiceName=%q, got %q", serviceNameVal, resp.ServiceName)
 	}
+
+	deleted, err := FindAndRemoveGenericPassword(&pass2)
+	if err != nil {
+		t.Error(err)
+	}
+	if !deleted {
+		t.Error("Unexpectedly not deleted")
+	}
 }
 
 func TestInternetPassword(t *testing.T) {
