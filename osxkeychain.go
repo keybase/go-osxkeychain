@@ -15,7 +15,7 @@ import (
 	"unsafe"
 )
 
-type GenericPassword struct {
+type GenericPasswordAttributes struct {
 	ServiceName string
 	AccountName string
 	Password    string
@@ -57,28 +57,28 @@ func (ke *keychainError) Error() string {
 	return fmt.Sprintf("keychainError with unknown error code %d", ke.errCode)
 }
 
-func AddGenericPassword(pass *GenericPassword) error {
+func AddGenericPassword(attributes *GenericPasswordAttributes) error {
 	// TODO: Encode in UTF-8 first.
 	// TODO: Check for length overflowing 32 bits.
-	serviceName := C.CString(pass.ServiceName)
+	serviceName := C.CString(attributes.ServiceName)
 	defer C.free(unsafe.Pointer(serviceName))
 
 	// TODO: Encode in UTF-8 first.
 	// TODO: Check for length overflowing 32 bits.
-	accountName := C.CString(pass.AccountName)
+	accountName := C.CString(attributes.AccountName)
 	defer C.free(unsafe.Pointer(accountName))
 
 	// TODO: Check for length overflowing 32 bits.
-	password := C.CString(pass.Password)
+	password := C.CString(attributes.Password)
 	defer C.free(unsafe.Pointer(password))
 
 	errCode := C.SecKeychainAddGenericPassword(
 		nil, // default keychain
-		C.UInt32(len(pass.ServiceName)),
+		C.UInt32(len(attributes.ServiceName)),
 		serviceName,
-		C.UInt32(len(pass.AccountName)),
+		C.UInt32(len(attributes.AccountName)),
 		accountName,
-		C.UInt32(len(pass.Password)),
+		C.UInt32(len(attributes.Password)),
 		unsafe.Pointer(password),
 		nil,
 	)
@@ -86,15 +86,15 @@ func AddGenericPassword(pass *GenericPassword) error {
 	return newKeychainError(errCode)
 }
 
-func FindGenericPassword(pass *GenericPassword) (*GenericPassword, error) {
+func FindGenericPassword(attributes *GenericPasswordAttributes) (string, error) {
 	// TODO: Encode in UTF-8 first.
 	// TODO: Check for length overflowing 32 bits.
-	serviceName := C.CString(pass.ServiceName)
+	serviceName := C.CString(attributes.ServiceName)
 	defer C.free(unsafe.Pointer(serviceName))
 
 	// TODO: Encode in UTF-8 first.
 	// TODO: Check for length overflowing 32 bits.
-	accountName := C.CString(pass.AccountName)
+	accountName := C.CString(attributes.AccountName)
 	defer C.free(unsafe.Pointer(accountName))
 
 	var passwordLength C.UInt32
@@ -103,9 +103,9 @@ func FindGenericPassword(pass *GenericPassword) (*GenericPassword, error) {
 
 	errCode := C.SecKeychainFindGenericPassword(
 		nil, // default keychain
-		C.UInt32(len(pass.ServiceName)),
+		C.UInt32(len(attributes.ServiceName)),
 		serviceName,
-		C.UInt32(len(pass.AccountName)),
+		C.UInt32(len(attributes.AccountName)),
 		accountName,
 		&passwordLength,
 		&password,
@@ -113,19 +113,16 @@ func FindGenericPassword(pass *GenericPassword) (*GenericPassword, error) {
 	)
 
 	if ke := newKeychainError(errCode); ke != nil {
-		return nil, ke
+		return "", ke
 	}
 
 	defer C.SecKeychainItemFreeContent(nil, password)
 
-	resp := *pass
-	resp.Password = C.GoStringN((*C.char)(password), C.int(passwordLength))
-
-	return &resp, nil
+	return C.GoStringN((*C.char)(password), C.int(passwordLength)), nil
 }
 
-func FindAndRemoveGenericPassword(pass *GenericPassword) error {
-	itemRef, ke := findGenericPasswordItem(pass)
+func FindAndRemoveGenericPassword(attributes *GenericPasswordAttributes) error {
+	itemRef, ke := findGenericPasswordItem(attributes)
 	if ke != nil {
 		return ke
 	}
@@ -136,48 +133,48 @@ func FindAndRemoveGenericPassword(pass *GenericPassword) error {
 	return newKeychainError(errCode)
 }
 
-func ReplaceOrAddGenericPassword(pass *GenericPassword) error {
-	itemRef, err := findGenericPasswordItem(pass)
+func ReplaceOrAddGenericPassword(attributes *GenericPasswordAttributes) error {
+	itemRef, err := findGenericPasswordItem(attributes)
 	if err != nil {
 		if ke, ok := err.(*keychainError); !ok || ke.getErrCode() != errItemNotFound {
 			return err
 		}
 
-		return AddGenericPassword(pass)
+		return AddGenericPassword(attributes)
 	}
 
 	defer C.CFRelease(C.CFTypeRef(itemRef))
 
 	// TODO: Check for length overflowing 32 bits.
-	password := C.CString(pass.Password)
+	password := C.CString(attributes.Password)
 	defer C.free(unsafe.Pointer(password))
 
 	errCode := C.SecKeychainItemModifyAttributesAndData(
 		itemRef,
 		nil,
-		C.UInt32(len(pass.Password)),
+		C.UInt32(len(attributes.Password)),
 		unsafe.Pointer(password),	
 	)
 
 	return newKeychainError(errCode)
 }
 
-func findGenericPasswordItem(pass *GenericPassword) (itemRef C.SecKeychainItemRef, err error) {
+func findGenericPasswordItem(attributes *GenericPasswordAttributes) (itemRef C.SecKeychainItemRef, err error) {
 	// TODO: Encode in UTF-8 first.
 	// TODO: Check for length overflowing 32 bits.
-	serviceName := C.CString(pass.ServiceName)
+	serviceName := C.CString(attributes.ServiceName)
 	defer C.free(unsafe.Pointer(serviceName))
 
 	// TODO: Encode in UTF-8 first.
 	// TODO: Check for length overflowing 32 bits.
-	accountName := C.CString(pass.AccountName)
+	accountName := C.CString(attributes.AccountName)
 	defer C.free(unsafe.Pointer(accountName))
 
 	errCode := C.SecKeychainFindGenericPassword(
 		nil, // default keychain
-		C.UInt32(len(pass.ServiceName)),
+		C.UInt32(len(attributes.ServiceName)),
 		serviceName,
-		C.UInt32(len(pass.AccountName)),
+		C.UInt32(len(attributes.AccountName)),
 		accountName,
 		nil,
 		nil,
