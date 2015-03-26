@@ -57,19 +57,29 @@ func (ke *keychainError) Error() string {
 }
 
 func AddGenericPassword(pass *GenericPassword) error {
-	cpassword := C.CString(pass.Password)
-	defer C.free(unsafe.Pointer(cpassword))
-	var itemRef C.SecKeychainItemRef
+	// TODO: Encode in UTF-8 first.
+	// TODO: Check for length overflowing 32 bits.
+	serviceName := C.CString(pass.ServiceName)
+	defer C.free(unsafe.Pointer(serviceName))
+
+	// TODO: Encode in UTF-8 first.
+	// TODO: Check for length overflowing 32 bits.
+	accountName := C.CString(pass.AccountName)
+	defer C.free(unsafe.Pointer(accountName))
+
+	// TODO: Check for length overflowing 32 bits.
+	password := C.CString(pass.Password)
+	defer C.free(unsafe.Pointer(password))
 
 	errCode := C.SecKeychainAddGenericPassword(
 		nil, // default keychain
 		C.UInt32(len(pass.ServiceName)),
-		C.CString(pass.ServiceName),
+		serviceName,
 		C.UInt32(len(pass.AccountName)),
-		C.CString(pass.AccountName),
+		accountName,
 		C.UInt32(len(pass.Password)),
-		unsafe.Pointer(cpassword),
-		&itemRef,
+		unsafe.Pointer(password),
+		nil,
 	)
 
 	return newKeychainError(errCode)
