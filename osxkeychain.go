@@ -136,6 +136,32 @@ func FindAndRemoveGenericPassword(pass *GenericPassword) error {
 	return newKeychainError(errCode)
 }
 
+func ReplaceOrAddGenericPassword(pass *GenericPassword) error {
+	itemRef, err := findGenericPasswordItem(pass)
+	if err != nil {
+		if ke, ok := err.(*keychainError); !ok || ke.getErrCode() != errItemNotFound {
+			return err
+		}
+
+		return AddGenericPassword(pass)
+	}
+
+	defer C.CFRelease(C.CFTypeRef(itemRef))
+
+	// TODO: Check for length overflowing 32 bits.
+	password := C.CString(pass.Password)
+	defer C.free(unsafe.Pointer(password))
+
+	errCode := C.SecKeychainItemModifyAttributesAndData(
+		itemRef,
+		nil,
+		C.UInt32(len(pass.Password)),
+		unsafe.Pointer(password),	
+	)
+
+	return newKeychainError(errCode)
+}
+
 func findGenericPasswordItem(pass *GenericPassword) (itemRef C.SecKeychainItemRef, err error) {
 	// TODO: Encode in UTF-8 first.
 	// TODO: Check for length overflowing 32 bits.
