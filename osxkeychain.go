@@ -18,7 +18,7 @@ import (
 type GenericPasswordAttributes struct {
 	ServiceName string
 	AccountName string
-	Password    string
+	Password    []byte
 }
 
 type _OSStatus C.OSStatus
@@ -69,8 +69,10 @@ func AddGenericPassword(attributes *GenericPasswordAttributes) error {
 	defer C.free(unsafe.Pointer(accountName))
 
 	// TODO: Check for length overflowing 32 bits.
-	password := C.CString(attributes.Password)
-	defer C.free(unsafe.Pointer(password))
+	var password unsafe.Pointer
+	if len(attributes.Password) > 0 {
+		password = unsafe.Pointer(&attributes.Password[0])
+	}
 
 	errCode := C.SecKeychainAddGenericPassword(
 		nil, // default keychain
@@ -79,14 +81,14 @@ func AddGenericPassword(attributes *GenericPasswordAttributes) error {
 		C.UInt32(len(attributes.AccountName)),
 		accountName,
 		C.UInt32(len(attributes.Password)),
-		unsafe.Pointer(password),
+		password,
 		nil,
 	)
 
 	return newKeychainError(errCode)
 }
 
-func FindGenericPassword(attributes *GenericPasswordAttributes) (string, error) {
+func FindGenericPassword(attributes *GenericPasswordAttributes) ([]byte, error) {
 	// TODO: Encode in UTF-8 first.
 	// TODO: Check for length overflowing 32 bits.
 	serviceName := C.CString(attributes.ServiceName)
@@ -113,12 +115,12 @@ func FindGenericPassword(attributes *GenericPasswordAttributes) (string, error) 
 	)
 
 	if ke := newKeychainError(errCode); ke != nil {
-		return "", ke
+		return nil, ke
 	}
 
 	defer C.SecKeychainItemFreeContent(nil, password)
 
-	return C.GoStringN((*C.char)(password), C.int(passwordLength)), nil
+	return C.GoBytes(password, C.int(passwordLength)), nil
 }
 
 func FindAndRemoveGenericPassword(attributes *GenericPasswordAttributes) error {
@@ -146,14 +148,16 @@ func ReplaceOrAddGenericPassword(attributes *GenericPasswordAttributes) error {
 	defer C.CFRelease(C.CFTypeRef(itemRef))
 
 	// TODO: Check for length overflowing 32 bits.
-	password := C.CString(attributes.Password)
-	defer C.free(unsafe.Pointer(password))
+	var password unsafe.Pointer
+	if len(attributes.Password) > 0 {
+		password = unsafe.Pointer(&attributes.Password[0])
+	}
 
 	errCode := C.SecKeychainItemModifyAttributesAndData(
 		itemRef,
 		nil,
 		C.UInt32(len(attributes.Password)),
-		unsafe.Pointer(password),
+		password,
 	)
 
 	return newKeychainError(errCode)
