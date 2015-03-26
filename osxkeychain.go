@@ -114,8 +114,8 @@ func FindGenericPassword(attributes *GenericPasswordAttributes) ([]byte, error) 
 		nil,
 	)
 
-	if ke := newKeychainError(errCode); ke != nil {
-		return nil, ke
+	if err := newKeychainError(errCode); err != nil {
+		return nil, err
 	}
 
 	defer C.SecKeychainItemFreeContent(nil, password)
@@ -124,9 +124,9 @@ func FindGenericPassword(attributes *GenericPasswordAttributes) ([]byte, error) 
 }
 
 func FindAndRemoveGenericPassword(attributes *GenericPasswordAttributes) error {
-	itemRef, ke := findGenericPasswordItem(attributes)
-	if ke != nil {
-		return ke
+	itemRef, err := findGenericPasswordItem(attributes)
+	if err != nil {
+		return err
 	}
 
 	defer C.CFRelease(C.CFTypeRef(itemRef))
