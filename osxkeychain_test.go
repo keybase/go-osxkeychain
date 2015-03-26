@@ -46,4 +46,10 @@ func TestGenericPassword(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	// Try removing a nonexistent password.
+	err = FindAndRemoveGenericPassword(&pass2)
+	if ke, ok := err.(*keychainError); !ok || ke.getErrCode() != errItemNotFound {
+		t.Errorf("expected ErrItemNotFound on 2nd removal, got %s", err)
+	}
 }

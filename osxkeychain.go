@@ -26,6 +26,7 @@ type _OSStatus C.OSStatus
 // TODO: Fill this out.
 const (
 	errDuplicateItem _OSStatus = C.errSecDuplicateItem
+	errItemNotFound            = C.errSecItemNotFound
 )
 
 type keychainError struct {
