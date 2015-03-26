@@ -153,7 +153,7 @@ func ReplaceOrAddGenericPassword(attributes *GenericPasswordAttributes) error {
 		itemRef,
 		nil,
 		C.UInt32(len(attributes.Password)),
-		unsafe.Pointer(password),	
+		unsafe.Pointer(password),
 	)
 
 	return newKeychainError(errCode)
