@@ -33,7 +33,7 @@ func TestGenericPassword(t *testing.T) {
 	}
 
 	// Replace password.
-	expectedPassword := "long test password"
+	expectedPassword := "long test password \000 with embedded nuls \000"
 	attributes.Password = expectedPassword
 	err = ReplaceOrAddGenericPassword(&attributes)
 	if err != nil {
