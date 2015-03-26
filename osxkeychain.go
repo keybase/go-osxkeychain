@@ -155,7 +155,7 @@ func AddInternetPassword(pass *InternetPassword) *KeychainError {
 	// TODO: Check for length overflowing 32 bits.
 	path := C.CString(pass.Path)
 	defer C.free(unsafe.Pointer(path))
-	
+
 	protocol := C.uint(protocolTypeToC(pass.Protocol))
 
 	authtype := C.uint(authenticationTypeToC(pass.AuthType))
@@ -211,7 +211,7 @@ func FindInternetPassword(pass *InternetPassword) (*InternetPassword, *KeychainE
 	// TODO: Check for length overflowing 32 bits.
 	path := C.CString(pass.Path)
 	defer C.free(unsafe.Pointer(path))
-	
+
 	protocol := C.uint(protocolTypeToC(pass.Protocol))
 
 	authtype := C.uint(authenticationTypeToC(pass.AuthType))
