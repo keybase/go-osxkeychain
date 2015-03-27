@@ -15,10 +15,12 @@ import (
 	"unsafe"
 )
 
+// All string fields must have size that fits in 32 bits. All string
+// fields except for Password must be encoded in UTF-8.
 type GenericPasswordAttributes struct {
 	ServiceName string
 	AccountName string
-	Password    []byte
+	Password    string
 }
 
 type _OSStatus C.OSStatus
@@ -58,21 +60,16 @@ func (ke *keychainError) Error() string {
 }
 
 func AddGenericPassword(attributes *GenericPasswordAttributes) error {
-	// TODO: Encode in UTF-8 first.
-	// TODO: Check for length overflowing 32 bits.
+	// TODO: Check fields for UTF-8 encoding and size fitting in
+	// 32 bits.
 	serviceName := C.CString(attributes.ServiceName)
 	defer C.free(unsafe.Pointer(serviceName))
 
-	// TODO: Encode in UTF-8 first.
-	// TODO: Check for length overflowing 32 bits.
 	accountName := C.CString(attributes.AccountName)
 	defer C.free(unsafe.Pointer(accountName))
 
-	// TODO: Check for length overflowing 32 bits.
-	var password unsafe.Pointer
-	if len(attributes.Password) > 0 {
-		password = unsafe.Pointer(&attributes.Password[0])
-	}
+	password := unsafe.Pointer(C.CString(attributes.Password))
+	defer C.free(password)
 
 	errCode := C.SecKeychainAddGenericPassword(
 		nil, // default keychain
@@ -88,14 +85,12 @@ func AddGenericPassword(attributes *GenericPasswordAttributes) error {
 	return newKeychainError(errCode)
 }
 
-func FindGenericPassword(attributes *GenericPasswordAttributes) ([]byte, error) {
-	// TODO: Encode in UTF-8 first.
-	// TODO: Check for length overflowing 32 bits.
+func FindGenericPassword(attributes *GenericPasswordAttributes) (string, error) {
+	// TODO: Check fields for UTF-8 encoding and size fitting in
+	// 32 bits.
 	serviceName := C.CString(attributes.ServiceName)
 	defer C.free(unsafe.Pointer(serviceName))
 
-	// TODO: Encode in UTF-8 first.
-	// TODO: Check for length overflowing 32 bits.
 	accountName := C.CString(attributes.AccountName)
 	defer C.free(unsafe.Pointer(accountName))
 
@@ -115,12 +110,12 @@ func FindGenericPassword(attributes *GenericPasswordAttributes) ([]byte, error) 
 	)
 
 	if err := newKeychainError(errCode); err != nil {
-		return nil, err
+		return "", err
 	}
 
 	defer C.SecKeychainItemFreeContent(nil, password)
 
-	return C.GoBytes(password, C.int(passwordLength)), nil
+	return C.GoStringN((*C.char)(password), C.int(passwordLength)), nil
 }
 
 func FindAndRemoveGenericPassword(attributes *GenericPasswordAttributes) error {
@@ -147,11 +142,9 @@ func ReplaceOrAddGenericPassword(attributes *GenericPasswordAttributes) error {
 
 	defer C.CFRelease(C.CFTypeRef(itemRef))
 
-	// TODO: Check for length overflowing 32 bits.
-	var password unsafe.Pointer
-	if len(attributes.Password) > 0 {
-		password = unsafe.Pointer(&attributes.Password[0])
-	}
+	// TODO: Check for size fitting in 32 bits.
+	password := unsafe.Pointer(C.CString(attributes.Password))
+	defer C.free(password)
 
 	errCode := C.SecKeychainItemModifyAttributesAndData(
 		itemRef,
@@ -164,13 +157,11 @@ func ReplaceOrAddGenericPassword(attributes *GenericPasswordAttributes) error {
 }
 
 func findGenericPasswordItem(attributes *GenericPasswordAttributes) (itemRef C.SecKeychainItemRef, err error) {
-	// TODO: Encode in UTF-8 first.
-	// TODO: Check for length overflowing 32 bits.
+	// TODO: Check field for UTF-8 encoding and size fitting in 32
+	// bits.
 	serviceName := C.CString(attributes.ServiceName)
 	defer C.free(unsafe.Pointer(serviceName))
 
-	// TODO: Encode in UTF-8 first.
-	// TODO: Check for length overflowing 32 bits.
 	accountName := C.CString(attributes.AccountName)
 	defer C.free(unsafe.Pointer(accountName))
 
