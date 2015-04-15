@@ -6,8 +6,8 @@ import (
 
 func TestGenericPassword(t *testing.T) {
 	attributes := GenericPasswordAttributes{
-		ServiceName: "osxkeychain_test",
-		AccountName: "test account",
+		ServiceName: "osxkeychain_test with unicode テスト",
+		AccountName: "test account with unicode テスト",
 	}
 
 	// Add with a blank password.
@@ -43,7 +43,7 @@ func TestGenericPassword(t *testing.T) {
 	}
 
 	// Replace password with a non-empty password.
-	expectedPassword := "long test password \000 with embedded nuls \000"
+	expectedPassword := "long test password \000 with invalid UTF-8 \xc3\x28 and embedded nuls \000"
 	attributes.Password = expectedPassword
 	err = ReplaceOrAddGenericPassword(&attributes)
 	if err != nil {
