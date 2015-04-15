@@ -18,7 +18,7 @@ func TestGenericPassword(t *testing.T) {
 
 	// Try adding again.
 	err = AddGenericPassword(&attributes)
-	if ke, ok := err.(*keychainError); !ok || ke.getErrCode() != errDuplicateItem {
+	if err != ErrDuplicateItem {
 		t.Errorf("expected ErrDuplicateItem, got %s", err)
 	}
 
@@ -68,7 +68,7 @@ func TestGenericPassword(t *testing.T) {
 
 	// Try removing again.
 	err = FindAndRemoveGenericPassword(&attributes)
-	if ke, ok := err.(*keychainError); !ok || ke.getErrCode() != errItemNotFound {
+	if err != ErrItemNotFound {
 		t.Errorf("expected ErrItemNotFound, got %s", err)
 	}
 }
