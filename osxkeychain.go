@@ -15,7 +15,10 @@ package osxkeychain
 import "C"
 
 import (
+	"errors"
 	"fmt"
+	"math"
+	"unicode/utf8"
 	"unsafe"
 )
 
@@ -25,6 +28,36 @@ type GenericPasswordAttributes struct {
 	ServiceName string
 	AccountName string
 	Password    string
+}
+
+func check32Bit(paramName, paramValue string) error {
+	if uint64(len(paramValue)) > math.MaxUint32 {
+		return errors.New(paramName + " has size overflowing 32 bits")
+	}
+	return nil
+}
+
+func check32BitUTF8(paramName, paramValue string) error {
+	if err := check32Bit(paramName, paramValue); err != nil {
+		return err
+	}
+	if !utf8.ValidString(paramValue) {
+		return errors.New(paramName + " is not a valid UTF-8 string")
+	}
+	return nil
+}
+
+func (attributes *GenericPasswordAttributes) CheckValidity() error {
+	if err := check32BitUTF8("ServiceName", attributes.ServiceName); err != nil {
+		return err
+	}
+	if err := check32BitUTF8("AccountName", attributes.AccountName); err != nil {
+		return err
+	}
+	if err := check32Bit("Password", attributes.Password); err != nil {
+		return err
+	}
+	return nil
 }
 
 type keychainError C.OSStatus
@@ -76,8 +109,10 @@ func (ke keychainError) Error() string {
 }
 
 func AddGenericPassword(attributes *GenericPasswordAttributes) error {
-	// TODO: Check fields for UTF-8 encoding and size fitting in
-	// 32 bits.
+	if err := attributes.CheckValidity(); err != nil {
+		return err
+	}
+
 	serviceName := C.CString(attributes.ServiceName)
 	defer C.free(unsafe.Pointer(serviceName))
 
@@ -102,8 +137,10 @@ func AddGenericPassword(attributes *GenericPasswordAttributes) error {
 }
 
 func FindGenericPassword(attributes *GenericPasswordAttributes) (string, error) {
-	// TODO: Check fields for UTF-8 encoding and size fitting in
-	// 32 bits.
+	if err := attributes.CheckValidity(); err != nil {
+		return "", err
+	}
+
 	serviceName := C.CString(attributes.ServiceName)
 	defer C.free(unsafe.Pointer(serviceName))
 
@@ -156,7 +193,6 @@ func ReplaceOrAddGenericPassword(attributes *GenericPasswordAttributes) error {
 
 	defer C.CFRelease(C.CFTypeRef(itemRef))
 
-	// TODO: Check for size fitting in 32 bits.
 	password := unsafe.Pointer(C.CString(attributes.Password))
 	defer C.free(password)
 
@@ -171,8 +207,10 @@ func ReplaceOrAddGenericPassword(attributes *GenericPasswordAttributes) error {
 }
 
 func findGenericPasswordItem(attributes *GenericPasswordAttributes) (itemRef C.SecKeychainItemRef, err error) {
-	// TODO: Check field for UTF-8 encoding and size fitting in 32
-	// bits.
+	if err = attributes.CheckValidity(); err != nil {
+		return
+	}
+
 	serviceName := C.CString(attributes.ServiceName)
 	defer C.free(unsafe.Pointer(serviceName))
 
