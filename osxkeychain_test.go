@@ -155,6 +155,12 @@ func TestGetAllAccountNames(t *testing.T) {
 		t.Errorf("Expected %d accounts, got %d", len(attributes), len(accountNames))
 	}
 
+	for i := 0; i < len(accountNames); i++ {
+		if accountNames[i] != attributes[i].AccountName {
+			t.Errorf("Expected account name %s, got %s", attributes[i].AccountName, accountNames[i])
+		}
+	}
+
 	for i := 0; i < len(attributes); i++ {
 		err = FindAndRemoveGenericPassword(&attributes[i])
 		if err != nil {
