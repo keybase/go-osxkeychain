@@ -231,3 +231,59 @@ func findGenericPasswordItem(attributes *GenericPasswordAttributes) (itemRef C.S
 	err = newKeychainError(errCode)
 	return
 }
+
+func stringToCFString(s string) (C.CFStringRef, error) {
+	if !utf8.ValidString(s) {
+		return nil, errors.New("invalid UTF-8 string")
+	}
+
+	bytes := []byte(s)
+	var p *C.UInt8
+	if len(bytes) > 0 {
+		p = (*C.UInt8)(&bytes[0])
+	}
+	return C.CFStringCreateWithBytes(nil, p, C.CFIndex(len(s)), C.kCFStringEncodingUTF8, C.false), nil
+}
+
+func mapToCFDictionary(m map[C.CFTypeRef]C.CFTypeRef) C.CFDictionaryRef {
+	var keys, values []unsafe.Pointer
+	for key, value := range m {
+		keys = append(keys, unsafe.Pointer(key))
+		values = append(values, unsafe.Pointer(value))
+	}
+	numValues := len(values)
+	var keysPointer, valuesPointer *unsafe.Pointer
+	if numValues > 0 {
+		keysPointer = &keys[0]
+		valuesPointer = &values[0]
+	}
+	return C.CFDictionaryCreate(nil, keysPointer, valuesPointer, C.CFIndex(numValues), &C.kCFTypeDictionaryKeyCallBacks, &C.kCFTypeDictionaryValueCallBacks)
+}
+
+func GetAllAccountNames(serviceName string) (accountNames []string, err error) {
+	var serviceNameString C.CFStringRef
+	if serviceNameString, err = stringToCFString(serviceName); err != nil {
+		return
+	}
+	defer C.CFRelease(C.CFTypeRef(serviceNameString))
+
+	query := map[C.CFTypeRef]C.CFTypeRef{
+		C.kSecClass:            C.kSecClassGenericPassword,
+		C.kSecAttrService:      C.CFTypeRef(serviceNameString),
+		C.kSecMatchLimit:       C.kSecMatchLimitAll,
+		C.kSecReturnAttributes: C.CFTypeRef(C.kCFBooleanTrue),
+	}
+	queryDict := mapToCFDictionary(query)
+	defer C.CFRelease(C.CFTypeRef(queryDict))
+
+	var result C.CFTypeRef
+	errCode := C.SecItemCopyMatching(queryDict, &result)
+	if err = newKeychainError(errCode); err != nil {
+		return nil, err
+	}
+	defer C.CFRelease(result)
+
+	// TODO: Retrieve data.
+	fmt.Printf("result is %v\n", result)
+	return
+}

@@ -1,6 +1,7 @@
 package osxkeychain
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -127,5 +128,37 @@ func TestInvalidUTF8(t *testing.T) {
 	err = FindAndRemoveGenericPassword(&attributes2)
 	if err.Error() != errAccountName {
 		t.Errorf("Expected \"%s\", got %v", errAccountName, err)
+	}
+}
+
+func TestGetAllAccountNames(t *testing.T) {
+	serviceName := "osxkeychain_test with unicode テスト"
+	attributes := make([]GenericPasswordAttributes, 10)
+	for i := 0; i < len(attributes); i++ {
+		attributes[i] = GenericPasswordAttributes{
+			ServiceName: serviceName,
+			AccountName: fmt.Sprintf("test account with unicode テスト %d", i),
+		}
+
+		err := AddGenericPassword(&attributes[i])
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
+	accountNames, err := GetAllAccountNames(serviceName)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(accountNames) != len(attributes) {
+		t.Errorf("Expected %d accounts, got %d", len(attributes), len(accountNames))
+	}
+
+	for i := 0; i < len(attributes); i++ {
+		err = FindAndRemoveGenericPassword(&attributes[i])
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }
