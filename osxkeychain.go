@@ -232,6 +232,7 @@ func findGenericPasswordItem(attributes *GenericPasswordAttributes) (itemRef C.S
 	return
 }
 
+// The returned CFStringRef, if non-nil, must be released via CFRelease.
 func _UTF8StringToCFString(s string) (C.CFStringRef, error) {
 	if !utf8.ValidString(s) {
 		return nil, errors.New("invalid UTF-8 string")
@@ -264,6 +265,7 @@ func _CFStringToUTF8String(s C.CFStringRef) string {
 	return string(buf[:usedBufLen])
 }
 
+// The returned CFDictionaryRef, if non-nil, must be released via CFRelease.
 func mapToCFDictionary(m map[C.CFTypeRef]C.CFTypeRef) C.CFDictionaryRef {
 	var keys, values []unsafe.Pointer
 	for key, value := range m {
@@ -318,15 +320,14 @@ func GetAllAccountNames(serviceName string) (accountNames []string, err error) {
 	queryDict := mapToCFDictionary(query)
 	defer C.CFRelease(C.CFTypeRef(queryDict))
 
-	var result C.CFTypeRef
-	errCode := C.SecItemCopyMatching(queryDict, &result)
+	var resultsRef C.CFTypeRef
+	errCode := C.SecItemCopyMatching(queryDict, &resultsRef)
 	if err = newKeychainError(errCode); err != nil {
 		return nil, err
 	}
-	defer C.CFRelease(result)
+	defer C.CFRelease(resultsRef)
 
-	resultArray := C.CFArrayRef(result)
-	results := _CFArrayToArray(resultArray)
+	results := _CFArrayToArray(C.CFArrayRef(resultsRef))
 	for _, result := range results {
 		m := _CFDictionaryToMap(C.CFDictionaryRef(result))
 		resultServiceName := _CFStringToUTF8String(C.CFStringRef(m[C.kSecAttrService]))
