@@ -133,6 +133,12 @@ func TestInvalidUTF8(t *testing.T) {
 
 func TestGetAllAccountNames(t *testing.T) {
 	serviceName := "osxkeychain_test with unicode テスト"
+
+	accountNames, err := GetAllAccountNames(serviceName)
+	if err != nil {
+		t.Error(err)
+	}
+
 	attributes := make([]GenericPasswordAttributes, 10)
 	for i := 0; i < len(attributes); i++ {
 		attributes[i] = GenericPasswordAttributes{
@@ -146,7 +152,7 @@ func TestGetAllAccountNames(t *testing.T) {
 		}
 	}
 
-	accountNames, err := GetAllAccountNames(serviceName)
+	accountNames, err = GetAllAccountNames(serviceName)
 	if err != nil {
 		t.Error(err)
 	}
@@ -166,5 +172,14 @@ func TestGetAllAccountNames(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
+	}
+
+	accountNames, err = GetAllAccountNames(serviceName)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(accountNames) != 0 {
+		t.Errorf("Expected no accounts, got %d", len(accountNames))
 	}
 }

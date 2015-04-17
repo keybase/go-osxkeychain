@@ -322,9 +322,13 @@ func GetAllAccountNames(serviceName string) (accountNames []string, err error) {
 
 	var resultsRef C.CFTypeRef
 	errCode := C.SecItemCopyMatching(queryDict, &resultsRef)
-	if err = newKeychainError(errCode); err != nil {
+	err = newKeychainError(errCode)
+	if err == ErrItemNotFound {
+		return []string{}, nil
+	} else if err != nil {
 		return nil, err
 	}
+
 	defer C.CFRelease(resultsRef)
 
 	results := _CFArrayToArray(C.CFArrayRef(resultsRef))
