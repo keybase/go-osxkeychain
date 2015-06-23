@@ -198,3 +198,30 @@ func TestGetAllAccountNames(t *testing.T) {
 		t.Errorf("Expected no accounts, got %d", len(accountNames))
 	}
 }
+
+// Test various race conditions with RemoveAndAddGenericPassword().
+func TestRemoveAndAddGenericPasswordRaces(t *testing.T) {
+	attributes := GenericPasswordAttributes{
+		ServiceName: "osxkeychain_test with unicode テスト",
+		AccountName: "test account with unicode テスト",
+		Password:    "test password",
+	}
+
+	// Make sure that if a malicious actor adds an identical entry
+	// after the remove and before the add, an error is raised.
+	err := removeAndAddGenericPasswordHelper(&attributes, func() {
+		err := AddGenericPassword(&attributes)
+		if err != nil {
+			t.Error(err)
+		}
+	})
+	if err != ErrDuplicateItem {
+		t.Error(err)
+	}
+
+	// Remove password.
+	err = FindAndRemoveGenericPassword(&attributes)
+	if err != nil {
+		t.Error(err)
+	}
+}
