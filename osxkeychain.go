@@ -205,10 +205,18 @@ func FindAndRemoveGenericPassword(attributes *GenericPasswordAttributes) error {
 // update-or-add. This would involve setting a separate attribute and
 // then checking for it, though.
 func RemoveAndAddGenericPassword(attributes *GenericPasswordAttributes) error {
+	return removeAndAddGenericPasswordHelper(attributes, func() {})
+}
+
+// removeAndAddGenericPasswordHelper is a helper function to help test
+// RemoveAndAddGenericPassword's handling of race conditions.
+func removeAndAddGenericPasswordHelper(attributes *GenericPasswordAttributes, fn func()) error {
 	err := FindAndRemoveGenericPassword(attributes)
 	if err != nil && err != ErrItemNotFound {
 		return err
 	}
+
+	fn()
 
 	return AddGenericPassword(attributes)
 }
