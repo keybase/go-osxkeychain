@@ -34,14 +34,14 @@ func TestGenericPassword(t *testing.T) {
 	}
 
 	// Replace password with itself (a nil password).
-	err = ReplaceOrAddGenericPassword(&attributes)
+	err = RemoveAndAddGenericPassword(&attributes)
 	if err != nil {
 		t.Error(err)
 	}
 
 	// Replace password with an empty password.
 	attributes.Password = ""
-	err = ReplaceOrAddGenericPassword(&attributes)
+	err = RemoveAndAddGenericPassword(&attributes)
 	if err != nil {
 		t.Error(err)
 	}
@@ -49,7 +49,7 @@ func TestGenericPassword(t *testing.T) {
 	// Replace password with a non-empty password.
 	expectedPassword := "long test password \000 with invalid UTF-8 \xc3\x28 and embedded nuls \000"
 	attributes.Password = expectedPassword
-	err = ReplaceOrAddGenericPassword(&attributes)
+	err = RemoveAndAddGenericPassword(&attributes)
 	if err != nil {
 		t.Error(err)
 	}
@@ -76,8 +76,8 @@ func TestGenericPassword(t *testing.T) {
 		t.Errorf("expected ErrItemNotFound, got %s", err)
 	}
 
-	// Try add path of ReplaceOrAddGenericPassword.
-	err = ReplaceOrAddGenericPassword(&attributes)
+	// Try add path of RemoveAndAddGenericPassword.
+	err = RemoveAndAddGenericPassword(&attributes)
 	if err != nil {
 		t.Error(err)
 	}
@@ -108,7 +108,7 @@ func TestInvalidUTF8(t *testing.T) {
 		t.Errorf("Expected \"%s\", got %v", errServiceName, err)
 	}
 
-	err = ReplaceOrAddGenericPassword(&attributes1)
+	err = RemoveAndAddGenericPassword(&attributes1)
 	if err.Error() != errServiceName {
 		t.Errorf("Expected \"%s\", got %v", errServiceName, err)
 	}
@@ -135,7 +135,7 @@ func TestInvalidUTF8(t *testing.T) {
 		t.Errorf("Expected \"%s\", got %v", errAccountName, err)
 	}
 
-	err = ReplaceOrAddGenericPassword(&attributes2)
+	err = RemoveAndAddGenericPassword(&attributes2)
 	if err.Error() != errAccountName {
 		t.Errorf("Expected \"%s\", got %v", errAccountName, err)
 	}

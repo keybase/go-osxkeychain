@@ -183,27 +183,30 @@ func FindAndRemoveGenericPassword(attributes *GenericPasswordAttributes) error {
 	return newKeychainError(errCode)
 }
 
-func ReplaceOrAddGenericPassword(attributes *GenericPasswordAttributes) error {
-	itemRef, err := findGenericPasswordItem(attributes)
-	if err == ErrItemNotFound {
-		return AddGenericPassword(attributes)
-	} else if err != nil {
+// RemoveAndAddGenericPassword calls FindAndRemoveGenericPassword()
+// with the given attributes (ignoring ErrItemNotFound) and then calls
+// AddGenericPassword with the same attributes.
+//
+// https://developer.apple.com/library/mac/documentation/Security/Reference/keychainservices/index.html says:
+//
+// Do not delete a keychain item and recreate it in order to modify
+// it; instead, use the SecKeychainItemModifyContent or
+// SecKeychainItemModifyAttributesAndData function to modify an
+// existing keychain item. When you delete a keychain item, you lose
+// any access controls and trust settings added by the user or by
+// other applications.
+//
+// But this is a security problem, since a malicious app can delete a
+// keychain item and recreate it with an ACL such that it can read it,
+// and then wait for an app to write to
+// it; see http://arxiv.org/abs/1505.06836 .
+func RemoveAndAddGenericPassword(attributes *GenericPasswordAttributes) error {
+	err := FindAndRemoveGenericPassword(attributes)
+	if err != nil && err != ErrItemNotFound {
 		return err
 	}
 
-	defer C.CFRelease(C.CFTypeRef(itemRef))
-
-	password := unsafe.Pointer(C.CString(attributes.Password))
-	defer C.free(password)
-
-	errCode := C.SecKeychainItemModifyAttributesAndData(
-		itemRef,
-		nil,
-		C.UInt32(len(attributes.Password)),
-		password,
-	)
-
-	return newKeychainError(errCode)
+	return AddGenericPassword(attributes)
 }
 
 func findGenericPasswordItem(attributes *GenericPasswordAttributes) (itemRef C.SecKeychainItemRef, err error) {
