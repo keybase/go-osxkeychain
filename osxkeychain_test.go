@@ -199,8 +199,8 @@ func TestGetAllAccountNames(t *testing.T) {
 	}
 }
 
-// Test various race conditions with RemoveAndAddGenericPassword().
-func TestRemoveAndAddGenericPasswordRaces(t *testing.T) {
+// Test various edge conditions with RemoveAndAddGenericPassword().
+func TestRemoveAndAddGenericPassword(t *testing.T) {
 	attributes := GenericPasswordAttributes{
 		ServiceName: "osxkeychain_test with unicode テスト",
 		AccountName: "test account with unicode テスト",
@@ -218,6 +218,15 @@ func TestRemoveAndAddGenericPasswordRaces(t *testing.T) {
 	if err != ErrDuplicateItem {
 		t.Error(err)
 	}
+
+	// Make sure that RemoveAndAddGenericPassword() actually does
+	// remove an existing entry first.
+	err = removeAndAddGenericPasswordHelper(&attributes, func() {
+		_, err := FindGenericPassword(&attributes)
+		if err != ErrItemNotFound {
+			t.Error(err)
+		}
+	})
 
 	// Remove password.
 	err = FindAndRemoveGenericPassword(&attributes)
