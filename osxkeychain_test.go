@@ -35,6 +35,9 @@ func TestGenericPassword(t *testing.T) {
 
 	// Replace password with itself (a nil password).
 	err = ReplaceOrAddGenericPassword(&attributes)
+	if err != nil {
+		t.Error(err)
+	}
 
 	// Replace password with an empty password.
 	attributes.Password = ""
@@ -71,6 +74,18 @@ func TestGenericPassword(t *testing.T) {
 	err = FindAndRemoveGenericPassword(&attributes)
 	if err != ErrItemNotFound {
 		t.Errorf("expected ErrItemNotFound, got %s", err)
+	}
+
+	// Try add path of ReplaceOrAddGenericPassword.
+	err = ReplaceOrAddGenericPassword(&attributes)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Remove.
+	err = FindAndRemoveGenericPassword(&attributes)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -158,7 +173,7 @@ func TestGetAllAccountNames(t *testing.T) {
 	}
 
 	if len(accountNames) != len(attributes) {
-		t.Errorf("Expected %d accounts, got %d", len(attributes), len(accountNames))
+		t.Fatalf("Expected %d accounts, got %d", len(attributes), len(accountNames))
 	}
 
 	for i := 0; i < len(accountNames); i++ {
