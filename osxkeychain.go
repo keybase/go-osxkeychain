@@ -200,6 +200,10 @@ func FindAndRemoveGenericPassword(attributes *GenericPasswordAttributes) error {
 // keychain item and recreate it with an ACL such that it can read it,
 // and then wait for an app to write to
 // it; see http://arxiv.org/abs/1505.06836 .
+//
+// TODO: Add a test that this function doesn't actually do
+// update-or-add. This would involve setting a separate attribute and
+// then checking for it, though.
 func RemoveAndAddGenericPassword(attributes *GenericPasswordAttributes) error {
 	err := FindAndRemoveGenericPassword(attributes)
 	if err != nil && err != ErrItemNotFound {
