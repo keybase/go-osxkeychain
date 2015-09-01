@@ -308,6 +308,22 @@ func TestAddingItemsToSpecificKeychain(t *testing.T) {
 		t.Error(err)
 	}
 
+	defaultAccounts, err := GetAllAccountNames("osxkeychain_test")
+	if err != nil {
+		t.Error(err)
+	}
+	if len(defaultAccounts) > 0 {
+		t.Error("Item was added to default keychains, should have been new keychain")
+	}
+
+	newKeychainAccounts, err := GetAllAccountNames("osxkeychain_test", kf)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(newKeychainAccounts) == 0 {
+		t.Error("Item wasn't found in new keychain")
+	}
+
 	err = FindAndRemoveGenericPassword(&attributes)
 	if err != nil {
 		t.Error(err)

@@ -120,6 +120,18 @@ func (ke keychainError) Error() string {
 	return fmt.Sprintf("keychainError with unknown error code %d", C.OSStatus(ke))
 }
 
+func openKeychain(path string) (C.SecKeychainRef, error) {
+	pathName := C.CString(path)
+	defer C.free(unsafe.Pointer(pathName))
+
+	var kref C.SecKeychainRef
+	if err := newKeychainError(C.SecKeychainOpen(pathName, &kref)); err != nil {
+		return nil, err
+	}
+
+	return kref, nil
+}
+
 func AddGenericPassword(attributes *GenericPasswordAttributes) (err error) {
 	if err = attributes.CheckValidity(); err != nil {
 		return
@@ -147,6 +159,18 @@ func AddGenericPassword(attributes *GenericPasswordAttributes) (err error) {
 		C.kSecValueData:   C.CFTypeRef(dataBytes),
 	}
 
+	if len(attributes.Keychain) == 1 {
+		kref, err := openKeychain(attributes.Keychain[0])
+		if err != nil {
+			return err
+		}
+		defer C.CFRelease(C.CFTypeRef(kref))
+		query[C.kSecUseKeychain] = C.CFTypeRef(kref)
+	} else if len(attributes.Keychain) > 1 {
+		err = errors.New("Can't add a password to multiple keychains")
+		return
+	}
+
 	access, err := createAccess(attributes.ServiceName, attributes.TrustedApplications)
 	if err != nil {
 		return
@@ -160,10 +184,7 @@ func AddGenericPassword(attributes *GenericPasswordAttributes) (err error) {
 	queryDict := mapToCFDictionary(query)
 	defer C.CFRelease(C.CFTypeRef(queryDict))
 
-	errCode := C.SecItemAdd(queryDict, nil)
-
-	err = newKeychainError(errCode)
-	return
+	return newKeychainError(C.SecItemAdd(queryDict, nil))
 }
 
 func FindGenericPassword(attributes *GenericPasswordAttributes) ([]byte, error) {
@@ -178,11 +199,28 @@ func FindGenericPassword(attributes *GenericPasswordAttributes) ([]byte, error) 
 	defer C.free(unsafe.Pointer(accountName))
 
 	var passwordLength C.UInt32
-
 	var password unsafe.Pointer
+	var keychainRef C.CFTypeRef
+
+	// search specific keychains, otherwise the defaults are used
+	if len(attributes.Keychain) > 0 {
+		var keychainRefs []C.CFTypeRef
+		for _, path := range attributes.Keychain {
+			kref, err := openKeychain(path)
+			if err != nil {
+				return nil, err
+			}
+			defer C.CFRelease(C.CFTypeRef(kref))
+			keychainRefs = append(keychainRefs, C.CFTypeRef(kref))
+		}
+
+		keychainRefsArray := arrayToCFArray(keychainRefs)
+		defer C.CFRelease(C.CFTypeRef(keychainRefsArray))
+		keychainRef = C.CFTypeRef(keychainRefsArray)
+	}
 
 	errCode := C.SecKeychainFindGenericPassword(
-		nil, // default keychain
+		keychainRef,
 		C.UInt32(len(attributes.ServiceName)),
 		serviceName,
 		C.UInt32(len(attributes.AccountName)),
@@ -262,8 +300,27 @@ func findGenericPasswordItem(attributes *GenericPasswordAttributes) (itemRef C.S
 	accountName := C.CString(attributes.AccountName)
 	defer C.free(unsafe.Pointer(accountName))
 
+	var keychainRef C.CFTypeRef
+
+	// search specific keychains, otherwise the defaults are used
+	if len(attributes.Keychain) > 0 {
+		var keychainRefs []C.CFTypeRef
+		for _, path := range attributes.Keychain {
+			kref, err := openKeychain(path)
+			if err != nil {
+				return itemRef, err
+			}
+			defer C.CFRelease(C.CFTypeRef(kref))
+			keychainRefs = append(keychainRefs, C.CFTypeRef(kref))
+		}
+
+		keychainRefsArray := arrayToCFArray(keychainRefs)
+		defer C.CFRelease(C.CFTypeRef(keychainRefsArray))
+		keychainRef = C.CFTypeRef(keychainRefsArray)
+	}
+
 	errCode := C.SecKeychainFindGenericPassword(
-		nil, // default keychain
+		keychainRef,
 		C.UInt32(len(attributes.ServiceName)),
 		serviceName,
 		C.UInt32(len(attributes.AccountName)),
@@ -372,7 +429,7 @@ func bytesToCFData(b []byte) C.CFDataRef {
 	return C.CFDataCreate(nil, p, C.CFIndex(len(b)))
 }
 
-func GetAllAccountNames(serviceName string) (accountNames []string, err error) {
+func GetAllAccountNames(serviceName string, keychains ...string) (accountNames []string, err error) {
 	var serviceNameString C.CFStringRef
 	if serviceNameString, err = _UTF8StringToCFString(serviceName); err != nil {
 		return
@@ -385,6 +442,24 @@ func GetAllAccountNames(serviceName string) (accountNames []string, err error) {
 		C.kSecMatchLimit:       C.kSecMatchLimitAll,
 		C.kSecReturnAttributes: C.CFTypeRef(C.kCFBooleanTrue),
 	}
+
+	// search specific keychains, otherwise the defaults are used
+	if len(keychains) > 0 {
+		var keychainRefs []C.CFTypeRef
+		for _, path := range keychains {
+			kref, err := openKeychain(path)
+			if err != nil {
+				return nil, err
+			}
+			defer C.CFRelease(C.CFTypeRef(kref))
+			keychainRefs = append(keychainRefs, C.CFTypeRef(kref))
+		}
+
+		keychainRefsArray := arrayToCFArray(keychainRefs)
+		defer C.CFRelease(C.CFTypeRef(keychainRefsArray))
+		query[C.kSecMatchSearchList] = C.CFTypeRef(keychainRefsArray)
+	}
+
 	queryDict := mapToCFDictionary(query)
 	defer C.CFRelease(C.CFTypeRef(queryDict))
 
