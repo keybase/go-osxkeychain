@@ -34,6 +34,7 @@ type GenericPasswordAttributes struct {
 	AccountName         string
 	Password            []byte
 	TrustedApplications []string
+	Keychain            []string
 }
 
 func check32Bit(paramName string, paramValue []byte) error {
@@ -477,4 +478,50 @@ func createAccess(label string, trustedApplications []string) (C.SecAccessRef, e
 	}
 
 	return access, nil
+}
+
+func CreateKeychain(path string, password string) error {
+	passwordRef := C.CString(password)
+	defer C.free(unsafe.Pointer(passwordRef))
+
+	pathName := C.CString(path)
+	defer C.free(unsafe.Pointer(pathName))
+
+	// without passing in kref we get 'One or more parameters passed to a function were not valid.'
+	var kref C.SecKeychainRef
+	errCode := C.SecKeychainCreate(pathName, C.UInt32(len(password)), unsafe.Pointer(passwordRef), C.Boolean(0), nil, &kref)
+	if err := newKeychainError(errCode); err != nil {
+		return err
+	}
+
+	defer C.CFRelease(C.CFTypeRef(kref))
+	return nil
+}
+
+func CreateKeychainViaPrompt(path string) error {
+	pathName := C.CString(path)
+	defer C.free(unsafe.Pointer(pathName))
+
+	// without passing in kref we get 'One or more parameters passed to a function were not valid.'
+	var kref C.SecKeychainRef
+	errCode := C.SecKeychainCreate(pathName, C.UInt32(0), nil, C.Boolean(1), nil, &kref)
+	if err := newKeychainError(errCode); err != nil {
+		return err
+	}
+
+	defer C.CFRelease(C.CFTypeRef(kref))
+	return nil
+}
+
+func DeleteKeychain(path string) error {
+	pathName := C.CString(path)
+	defer C.free(unsafe.Pointer(pathName))
+
+	var kref C.SecKeychainRef
+	if err := newKeychainError(C.SecKeychainOpen(pathName, &kref)); err != nil {
+		return err
+	}
+	defer C.CFRelease(C.CFTypeRef(kref))
+
+	return newKeychainError(C.SecKeychainDelete(kref))
 }
