@@ -106,6 +106,19 @@ func newKeychainError(errCode C.OSStatus) error {
 	return keychainError(errCode)
 }
 
+// The various kSec* variables are either CFTypeRef or CFStringRef,
+// depending on OS X version. So define CFTypeRef-cast variables for
+// the ones we use, so we can use them in maps.
+var kSecClass C.CFTypeRef = C.CFTypeRef(C.kSecClass)
+var kSecClassGenericPassword C.CFTypeRef = C.CFTypeRef(C.kSecClassGenericPassword)
+var kSecAttrService C.CFTypeRef = C.CFTypeRef(C.kSecAttrService)
+var kSecAttrAccount C.CFTypeRef = C.CFTypeRef(C.kSecAttrAccount)
+var kSecAttrAccess C.CFTypeRef = C.CFTypeRef(C.kSecAttrAccess)
+var kSecValueData C.CFTypeRef = C.CFTypeRef(C.kSecValueData)
+var kSecMatchLimit C.CFTypeRef = C.CFTypeRef(C.kSecMatchLimit)
+var kSecMatchLimitAll C.CFTypeRef = C.CFTypeRef(C.kSecMatchLimitAll)
+var kSecReturnAttributes C.CFTypeRef = C.CFTypeRef(C.kSecReturnAttributes)
+
 func (ke keychainError) Error() string {
 	errorMessageCFString := C.SecCopyErrorMessageString(C.OSStatus(ke), nil)
 	defer C.CFRelease(C.CFTypeRef(errorMessageCFString))
@@ -140,10 +153,10 @@ func AddGenericPassword(attributes *GenericPasswordAttributes) (err error) {
 	defer C.CFRelease(C.CFTypeRef(dataBytes))
 
 	query := map[C.CFTypeRef]C.CFTypeRef{
-		C.kSecClass:       C.kSecClassGenericPassword,
-		C.kSecAttrService: C.CFTypeRef(serviceNameString),
-		C.kSecAttrAccount: C.CFTypeRef(accountNameString),
-		C.kSecValueData:   C.CFTypeRef(dataBytes),
+		kSecClass:       kSecClassGenericPassword,
+		kSecAttrService: C.CFTypeRef(serviceNameString),
+		kSecAttrAccount: C.CFTypeRef(accountNameString),
+		kSecValueData:   C.CFTypeRef(dataBytes),
 	}
 
 	access, err := createAccess(attributes.ServiceName, attributes.TrustedApplications)
@@ -153,7 +166,7 @@ func AddGenericPassword(attributes *GenericPasswordAttributes) (err error) {
 
 	if access != nil {
 		defer C.CFRelease(C.CFTypeRef(access))
-		query[C.kSecAttrAccess] = C.CFTypeRef(access)
+		query[kSecAttrAccess] = C.CFTypeRef(access)
 	}
 
 	queryDict := mapToCFDictionary(query)
@@ -379,10 +392,10 @@ func GetAllAccountNames(serviceName string) (accountNames []string, err error) {
 	defer C.CFRelease(C.CFTypeRef(serviceNameString))
 
 	query := map[C.CFTypeRef]C.CFTypeRef{
-		C.kSecClass:            C.kSecClassGenericPassword,
-		C.kSecAttrService:      C.CFTypeRef(serviceNameString),
-		C.kSecMatchLimit:       C.kSecMatchLimitAll,
-		C.kSecReturnAttributes: C.CFTypeRef(C.kCFBooleanTrue),
+		kSecClass:            kSecClassGenericPassword,
+		kSecAttrService:      C.CFTypeRef(serviceNameString),
+		kSecMatchLimit:       kSecMatchLimitAll,
+		kSecReturnAttributes: C.CFTypeRef(C.kCFBooleanTrue),
 	}
 	queryDict := mapToCFDictionary(query)
 	defer C.CFRelease(C.CFTypeRef(queryDict))
@@ -411,12 +424,12 @@ func GetAllAccountNames(serviceName string) (accountNames []string, err error) {
 	results := _CFArrayToArray(C.CFArrayRef(resultsRef))
 	for _, result := range results {
 		m := _CFDictionaryToMap(C.CFDictionaryRef(result))
-		resultServiceName := _CFStringToUTF8String(C.CFStringRef(m[C.kSecAttrService]))
+		resultServiceName := _CFStringToUTF8String(C.CFStringRef(m[kSecAttrService]))
 		if resultServiceName != serviceName {
 			err = fmt.Errorf("Expected service name %s, got %s", serviceName, resultServiceName)
 			return
 		}
-		accountName := _CFStringToUTF8String(C.CFStringRef(m[C.kSecAttrAccount]))
+		accountName := _CFStringToUTF8String(C.CFStringRef(m[kSecAttrAccount]))
 		accountNames = append(accountNames, accountName)
 	}
 	return
