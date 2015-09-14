@@ -22,6 +22,9 @@ import (
 	"unsafe"
 )
 
+// GenericPasswordAttributes holds all the info for a generic password
+// in a keychain.
+//
 // All string fields must have size that fits in 32 bits. All string
 // fields except for Password must be encoded in UTF-8.
 //
@@ -53,6 +56,9 @@ func check32BitUTF8(paramName, paramValue string) error {
 	return nil
 }
 
+// CheckValidity returns an error if any of the attributes in the
+// given GenericPasswordAttributes are invalid. Otherwise, it returns
+// nil.
 func (attributes *GenericPasswordAttributes) CheckValidity() error {
 	if err := check32BitUTF8("ServiceName", attributes.ServiceName); err != nil {
 		return err
@@ -109,15 +115,15 @@ func newKeychainError(errCode C.OSStatus) error {
 // The various kSec* variables are either CFTypeRef or CFStringRef,
 // depending on OS X version. So define CFTypeRef-cast variables for
 // the ones we use, so we can use them in maps.
-var kSecClass C.CFTypeRef = C.CFTypeRef(C.kSecClass)
-var kSecClassGenericPassword C.CFTypeRef = C.CFTypeRef(C.kSecClassGenericPassword)
-var kSecAttrService C.CFTypeRef = C.CFTypeRef(C.kSecAttrService)
-var kSecAttrAccount C.CFTypeRef = C.CFTypeRef(C.kSecAttrAccount)
-var kSecAttrAccess C.CFTypeRef = C.CFTypeRef(C.kSecAttrAccess)
-var kSecValueData C.CFTypeRef = C.CFTypeRef(C.kSecValueData)
-var kSecMatchLimit C.CFTypeRef = C.CFTypeRef(C.kSecMatchLimit)
-var kSecMatchLimitAll C.CFTypeRef = C.CFTypeRef(C.kSecMatchLimitAll)
-var kSecReturnAttributes C.CFTypeRef = C.CFTypeRef(C.kSecReturnAttributes)
+var secClass = C.CFTypeRef(C.kSecClass)
+var secClassGenericPassword = C.CFTypeRef(C.kSecClassGenericPassword)
+var secAttrService = C.CFTypeRef(C.kSecAttrService)
+var secAttrAccount = C.CFTypeRef(C.kSecAttrAccount)
+var secAttrAccess = C.CFTypeRef(C.kSecAttrAccess)
+var secValueData = C.CFTypeRef(C.kSecValueData)
+var secMatchLimit = C.CFTypeRef(C.kSecMatchLimit)
+var secMatchLimitAll = C.CFTypeRef(C.kSecMatchLimitAll)
+var secReturnAttributes = C.CFTypeRef(C.kSecReturnAttributes)
 
 func (ke keychainError) Error() string {
 	errorMessageCFString := C.SecCopyErrorMessageString(C.OSStatus(ke), nil)
@@ -132,6 +138,8 @@ func (ke keychainError) Error() string {
 	return fmt.Sprintf("keychainError with unknown error code %d", C.OSStatus(ke))
 }
 
+// AddGenericPassword adds a generic password with the given
+// attributes to the default keychain.
 func AddGenericPassword(attributes *GenericPasswordAttributes) (err error) {
 	if err = attributes.CheckValidity(); err != nil {
 		return
@@ -153,10 +161,10 @@ func AddGenericPassword(attributes *GenericPasswordAttributes) (err error) {
 	defer C.CFRelease(C.CFTypeRef(dataBytes))
 
 	query := map[C.CFTypeRef]C.CFTypeRef{
-		kSecClass:       kSecClassGenericPassword,
-		kSecAttrService: C.CFTypeRef(serviceNameString),
-		kSecAttrAccount: C.CFTypeRef(accountNameString),
-		kSecValueData:   C.CFTypeRef(dataBytes),
+		secClass:       secClassGenericPassword,
+		secAttrService: C.CFTypeRef(serviceNameString),
+		secAttrAccount: C.CFTypeRef(accountNameString),
+		secValueData:   C.CFTypeRef(dataBytes),
 	}
 
 	access, err := createAccess(attributes.ServiceName, attributes.TrustedApplications)
@@ -166,7 +174,7 @@ func AddGenericPassword(attributes *GenericPasswordAttributes) (err error) {
 
 	if access != nil {
 		defer C.CFRelease(C.CFTypeRef(access))
-		query[kSecAttrAccess] = C.CFTypeRef(access)
+		query[secAttrAccess] = C.CFTypeRef(access)
 	}
 
 	queryDict := mapToCFDictionary(query)
@@ -178,6 +186,9 @@ func AddGenericPassword(attributes *GenericPasswordAttributes) (err error) {
 	return
 }
 
+// FindGenericPassword finds a generic password with the given
+// attributes in the default keychain and returns the password field
+// if found. If not found, an error is returned.
 func FindGenericPassword(attributes *GenericPasswordAttributes) ([]byte, error) {
 	if err := attributes.CheckValidity(); err != nil {
 		return nil, err
@@ -213,6 +224,9 @@ func FindGenericPassword(attributes *GenericPasswordAttributes) ([]byte, error) 
 	return C.GoBytes(password, C.int(passwordLength)), nil
 }
 
+// FindAndRemoveGenericPassword finds a generic password with the
+// given attributes in the default keychain and removes it if
+// found. If not found, an error is returned.
 func FindAndRemoveGenericPassword(attributes *GenericPasswordAttributes) error {
 	itemRef, err := findGenericPasswordItem(attributes)
 	if err != nil {
@@ -384,6 +398,8 @@ func bytesToCFData(b []byte) C.CFDataRef {
 	return C.CFDataCreate(nil, p, C.CFIndex(len(b)))
 }
 
+// GetAllAccountNames returns a list of all account names for the
+// given service name in the default keychain.
 func GetAllAccountNames(serviceName string) (accountNames []string, err error) {
 	var serviceNameString C.CFStringRef
 	if serviceNameString, err = _UTF8StringToCFString(serviceName); err != nil {
@@ -392,10 +408,10 @@ func GetAllAccountNames(serviceName string) (accountNames []string, err error) {
 	defer C.CFRelease(C.CFTypeRef(serviceNameString))
 
 	query := map[C.CFTypeRef]C.CFTypeRef{
-		kSecClass:            kSecClassGenericPassword,
-		kSecAttrService:      C.CFTypeRef(serviceNameString),
-		kSecMatchLimit:       kSecMatchLimitAll,
-		kSecReturnAttributes: C.CFTypeRef(C.kCFBooleanTrue),
+		secClass:            secClassGenericPassword,
+		secAttrService:      C.CFTypeRef(serviceNameString),
+		secMatchLimit:       secMatchLimitAll,
+		secReturnAttributes: C.CFTypeRef(C.kCFBooleanTrue),
 	}
 	queryDict := mapToCFDictionary(query)
 	defer C.CFRelease(C.CFTypeRef(queryDict))
@@ -413,9 +429,9 @@ func GetAllAccountNames(serviceName string) (accountNames []string, err error) {
 
 	// The resultsRef should always be an array (because kSecReturnAttributes is true)
 	// but it's a good sanity check and useful if want to support kSecReturnRef in the future.
-	typeId := C.CFGetTypeID(resultsRef)
-	if typeId != C.CFArrayGetTypeID() {
-		typeDesc := C.CFCopyTypeIDDescription(typeId)
+	typeID := C.CFGetTypeID(resultsRef)
+	if typeID != C.CFArrayGetTypeID() {
+		typeDesc := C.CFCopyTypeIDDescription(typeID)
 		defer C.CFRelease(C.CFTypeRef(typeDesc))
 		err = fmt.Errorf("Invalid result type: %s", _CFStringToUTF8String(typeDesc))
 		return
@@ -424,12 +440,12 @@ func GetAllAccountNames(serviceName string) (accountNames []string, err error) {
 	results := _CFArrayToArray(C.CFArrayRef(resultsRef))
 	for _, result := range results {
 		m := _CFDictionaryToMap(C.CFDictionaryRef(result))
-		resultServiceName := _CFStringToUTF8String(C.CFStringRef(m[kSecAttrService]))
+		resultServiceName := _CFStringToUTF8String(C.CFStringRef(m[secAttrService]))
 		if resultServiceName != serviceName {
 			err = fmt.Errorf("Expected service name %s, got %s", serviceName, resultServiceName)
 			return
 		}
-		accountName := _CFStringToUTF8String(C.CFStringRef(m[kSecAttrAccount]))
+		accountName := _CFStringToUTF8String(C.CFStringRef(m[secAttrAccount]))
 		accountNames = append(accountNames, accountName)
 	}
 	return
