@@ -1,4 +1,4 @@
-**You may want [keybase/go-keychain](github.com/keybase/go-keychain) instead, which uses the newer keychain APIs and works for both iOS and OSX.**
+**You may want [keybase/go-keychain](https://github.com/keybase/go-keychain) instead, which uses the newer keychain APIs and works for both iOS and OSX.**
 
 ## go-osxkeychain
 
