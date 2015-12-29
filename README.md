@@ -1,6 +1,6 @@
-# go-osxkeychain
-
 **You may want [keybase/go-keychain](github.com/keybase/go-keychain) instead, which uses the newer keychain APIs and works for both iOS and OSX.**
+
+## go-osxkeychain
 
 Golang package for accessing and manipulating the Mac OS X Keychain.
 
